@@ -12,3 +12,12 @@ canvas {
   border: 1px solid;
   background-color: darkorange;
 }
+
+button {
+  border: 1px solid;
+  background-color: darkorange;
+  color: white;
+  font-size: 20px;
+  padding: 10px;
+  cursor: pointer;
+}
