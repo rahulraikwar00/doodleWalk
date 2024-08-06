@@ -3,16 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Rotating Canvas Drawing App</title>
-    <link rel="stylesheet" href="styles.css" />
+    <title>Infinite Canvas</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+        background-color: #f0f0f0;
+      }
+    </style>
   </head>
   <body>
-    <h1>Rotating Canvas Drawing App</h1>
-
-    <canvas id="canvas" width="400" height="400"></canvas>
-    <button id="btn">hold to draw</button>
-    <button id="moveup">move up</button>
-    <button id="movedown">move down</button>
+    <canvas id="drawingCanvas" width="400" height="400"></canvas>
     <script src="script.js"></script>
   </body>
 </html>

@@ -1,111 +1,119 @@
-const canvas = document.getElementById("canvas");
+const canvas = document.getElementById("drawingCanvas");
 const ctx = canvas.getContext("2d");
 
-let isDrawing = false;
-let eventInfo = null;
-let rotationAngle = 0;
+let drawing = false;
+let offsetX = 0;
+let offsetY = 0;
+let lastX, lastY;
+let rotatingAngle = 90;
+const drawings = [];
 
-const canvasCenter = {
-  x: canvas.width / 2,
-  y: canvas.height / 2,
-};
+const centerX = canvas.width / 2;
+const centerY = canvas.height / 2;
 
-function drawPoint() {
-  ctx.beginPath();
-  ctx.moveTo(canvasCenter.x, canvasCenter.y);
-  ctx.arc(canvasCenter.x, canvasCenter.y, 10, 0, 8 * Math.PI);
-  ctx.strokeStyle = "black";
-  ctx.fillStyle = "black";
-  ctx.fill();
-  ctx.stroke();
-}
-function drawTriangel(canvasCenter, position) {
+canvas.addEventListener("mousedown", startDrawing);
+canvas.addEventListener("mouseup", stopDrawing);
+canvas.addEventListener("mousemove", draw);
+canvas.addEventListener("mouseleave", stopDrawing);
+
+function drawTriangle(size) {
   ctx.save();
-  ctx.translate(canvasCenter.x, canvasCenter.y);
-  ctx.rotate(-rotationAngle * (Math.PI / 180));
+  ctx.translate(centerX - offsetX, centerY - offsetY);
+  ctx.rotate(-rotatingAngle * (Math.PI / 180));
   ctx.beginPath();
-  ctx.moveTo(0, -10);
-  ctx.lineTo(-5, 5);
-  ctx.lineTo(5, 5);
+  ctx.moveTo(0, -size);
+  ctx.lineTo(-size / 2, size / 2);
+  ctx.lineTo(size / 2, size / 2);
   ctx.closePath();
-  ctx.strokeStyle = "black";
-  ctx.fillStyle = "black";
-  ctx.stroke();
+  ctx.fill();
   ctx.restore();
 }
-// drawTriangel(canvasCenter);
 
-document.getElementById("moveup").addEventListener("click", (event) => {
-  const canvasCenter = rotatePoint(
-    canvasCenter.x,
-    canvasCenter.y,
-    canvasCenter.x,
-    canvasCenter.y,
-    10
-  );
-  canvasCenter.x += 10;
-  // ctx.translate(canvasCenter.x, canvasCenter.y);
-});
+function startDrawing(event) {
+  drawing = true;
+  lastX = event.clientX;
+  lastY = event.clientY;
+}
 
-document.getElementById("btn").addEventListener("touchstart", (event) => {
-  isDrawing = true;
-  ctx.beginPath();
-  ctx.moveTo(canvasCenter.x, canvasCenter.y);
-});
+function stopDrawing() {
+  drawing = false;
+  ctx.beginPath(); // Begin a new path to stop connecting lines
+}
 
-document.getElementById("btn").addEventListener("touchend", (event) => {
-  isDrawing = false;
-  ctx.stroke();
-  eventInfo = null;
-});
+function draw(event) {
+  if (!drawing) return;
+  const dx = event.clientX - lastX;
+  const dy = event.clientY - lastY;
 
-function animate() {
-  canvas.style.transform = `translate(-50%, -50%) rotate(${rotationAngle}deg)`;
+  const { mag, dir } = toPolar(dx, dy);
+  const { x, y } = polatToXy(mag, dir - rotatingAngle * (Math.PI / 180));
 
-  if (isDrawing && eventInfo) {
-    const offsetX = eventInfo.acceleration.x * 10 + 100; // Scale factor for visibility
-    const offsetY = eventInfo.acceleration.y * 10 + 100;
-    const newX = offsetX;
-    const newY = offsetY;
-    ctx.lineTo(newX, newY);
-    ctx.stroke();
+  console.table({ dx, dy, mag, dir, x, y });
+  offsetX += x;
+  offsetY += y;
+  lastX = event.clientX;
+  lastY = event.clientY;
 
-    ctx.moveTo(newX, newY); // Move to the new point for the next line segment
-  }
+  drawings.push({ dx: offsetX, dy: offsetY });
+
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawTriangel(canvasCenter);
-  requestAnimationFrame(animate);
+  redraw();
+
+  ctx.lineWidth = 5;
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "black";
+
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY);
+  ctx.lineTo(centerX - x, centerY - y);
+  ctx.stroke();
+
+  ctx.moveTo(centerX - x, centerY - y);
 }
 
-animate();
+function redraw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
 
-function handleRotation(event) {
-  rotationAngle = event.alpha;
+  ctx.translate(offsetX, offsetY);
+
+  drawTriangle(10);
+  drawings.forEach((drawing) => {
+    ctx.lineWidth = 5;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "black";
+
+    ctx.beginPath();
+    // ctx.moveTo(centerX, centerY);
+    ctx.lineTo(centerX - drawing.dx, centerY - drawing.dy);
+    ctx.stroke();
+  });
+
+  ctx.restore();
 }
 
-window.addEventListener("deviceorientation", handleRotation);
+function toPolar(x, y) {
+  return {
+    mag: Math.hypot(x, y),
+    dir: Math.atan2(y, x),
+  };
+}
+
+function polatToXy(mag, dir) {
+  return {
+    x: mag * Math.cos(dir),
+    y: mag * Math.sin(dir),
+  };
+}
+window.addEventListener("deviceorientation", (event) => {
+  rotatingAngle = event.alpha;
+  canvas.style.transform = `rotate(${rotatingAngle}deg)`;
+  redraw();
+});
 
 window.addEventListener("devicemotion", (event) => {
-  eventInfo = event;
+  drawing = true;
+  lastX = 10;
+  lastY = 10;
+  redraw();
 });
-
-function rotatePoint(x, y, centerX, centerY, angle) {
-  // Convert angle to radians
-  let radians = angle * (Math.PI / 180);
-
-  // Translate point to origin
-  let translatedX = x - centerX;
-  let translatedY = y - centerY;
-
-  // Rotate point
-  let rotatedX =
-    translatedX * Math.cos(radians) - translatedY * Math.sin(radians);
-  let rotatedY =
-    translatedX * Math.sin(radians) + translatedY * Math.cos(radians);
-
-  // Translate point back
-  let newX = rotatedX + centerX;
-  let newY = rotatedY + centerY;
-
-  return { x: newX, y: newY };
-}
