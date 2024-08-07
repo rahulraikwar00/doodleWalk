@@ -7,6 +7,10 @@ let offsetY = 0;
 let rotatingAngle = 0;
 let updateoffsetvalue = 0;
 const drawings = [];
+let walking = false;
+const accelerationHistory = [];
+const sampleSize = 50;
+let threshold = 0.2;
 
 const centerX = canvas.width / 2;
 const centerY = canvas.height / 2;
@@ -27,21 +31,22 @@ function drawTriangle(size) {
 
 // Function to handle drawing
 function draw() {
-  if (!drawing) return;
+  // if (!drawing) return;
   const dx = 0;
   const dy = updateoffsetvalue;
   const { mag, dir } = toPolar(dx, dy);
   const { x, y } = polatToXy(mag, dir - rotatingAngle * (Math.PI / 180));
-
   offsetX += x;
   offsetY += y;
-  drawings.push({ dx: offsetX, dy: offsetY });
+  if (drawing) {
+    drawings.push({ dx: offsetX, dy: offsetY });
+  }
   ctx.moveTo(centerX - offsetX, centerY - offsetY);
 }
 
 // Function to redraw the canvas
 function redraw() {
-  if (!drawing) return;
+  // if (!drawing) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.save();
   ctx.translate(offsetX, offsetY);
@@ -81,7 +86,7 @@ const permissionStatus = document.getElementById("permission-status"); // New el
 // Function to handle device orientation events
 function handleOrientation(event) {
   rotatingAngle = event.alpha;
-  deviceDetails.innerText = `Device: ${rotatingAngle}`;
+  deviceDetails.innerText = `Device: ${rotatingAngle.toFixed(2)}°`;
   canvas.style.transform = `rotate(${rotatingAngle}deg)`;
 }
 
@@ -105,10 +110,6 @@ if (typeof DeviceOrientationEvent.requestPermission === "function") {
   permissionStatus.innerText = "Device orientation permission not required.";
 }
 
-setInterval(() => {
-  updateoffsetvalue = 1;
-}, 500);
-
 animate();
 
 // Function to animate the drawing
@@ -130,3 +131,60 @@ button.addEventListener("click", () => {
     button.innerText = "Start"; // Change button text to "Start"
   }
 });
+
+const tresholdValue = document.getElementById("addthreshold");
+tresholdValue.textContent = "Threshold: " + threshold;
+tresholdValue.addEventListener("click", () => {
+  threshold += 0.1;
+  tresholdValue.textContent = "Threshold: " + threshold.toFixed(1);
+});
+
+// Request permission for iOS 13+ devices
+if (typeof DeviceMotionEvent.requestPermission === "function") {
+  DeviceMotionEvent.requestPermission()
+    .then((permissionState) => {
+      if (permissionState === "granted") {
+        window.addEventListener("devicemotion", handleMotionEvent);
+      }
+    })
+    .catch(console.error);
+} else {
+  // For devices that do not require permission
+  window.addEventListener("devicemotion", handleMotionEvent);
+}
+
+function handleMotionEvent(event) {
+  const acceleration = event.accelerationIncludingGravity;
+  const magnitude = Math.sqrt(
+    acceleration.x * acceleration.x +
+      acceleration.y * acceleration.y +
+      acceleration.z * acceleration.z
+  );
+
+  // Add the magnitude to the history
+  accelerationHistory.push(magnitude);
+
+  // Maintain a fixed-size history
+  if (accelerationHistory.length > sampleSize) {
+    accelerationHistory.shift();
+  }
+
+  // Calculate the variance
+  if (accelerationHistory.length === sampleSize) {
+    const mean = accelerationHistory.reduce((a, b) => a + b) / sampleSize;
+    const variance =
+      accelerationHistory.reduce((a, b) => a + (b - mean) ** 2, 0) / sampleSize;
+
+    // Determine if the person is walking based on the variance
+    if (variance > threshold) {
+      walking = true;
+      updateoffsetvalue = 1;
+      document.getElementById("walkigStatus").innerText = "staus: Walking";
+    } else {
+      walking = false;
+      updateoffsetvalue = 0;
+      document.getElementById("walkigStatus").innerText =
+        " status: Not Walking";
+    }
+  }
+}
