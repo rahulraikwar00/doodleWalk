@@ -4,19 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Infinite Canvas</title>
-    <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-      }
-      canvas {
-        display: block;
-        background-color: #f0f0f0;
-      }
-    </style>
+    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <canvas id="drawingCanvas" width="400" height="400"></canvas>
+    <canvas id="drawingCanvas" width="500" height="500"></canvas>
+    <button id="btn">Start</button>
+    <div id="device-details">Device orientation not available</div>
+    <div id="permission-status"></div>
+    <!-- New element for displaying permission status -->
     <script src="script.js"></script>
   </body>
 </html>
