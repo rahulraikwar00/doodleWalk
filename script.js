@@ -1,6 +1,9 @@
 const canvas = document.getElementById("drawingCanvas");
 const ctx = canvas.getContext("2d");
 
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight - 300;
+
 let drawing = false;
 let offsetX = 0;
 let offsetY = 0;
@@ -26,6 +29,7 @@ function drawTriangle(size) {
   ctx.lineTo(size / 2, size / 2);
   ctx.closePath();
   ctx.fill();
+  ctx.fillStyle = "green";
   ctx.restore();
 }
 
@@ -50,8 +54,13 @@ function redraw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.save();
   ctx.translate(offsetX, offsetY);
+  ctx.translate(centerX - offsetX, centerY - offsetY);
+  ctx.rotate(rotatingAngle * (Math.PI / 180));
+  ctx.save();
+  ctx.restore();
+  ctx.translate(-centerX + offsetX, -centerY + offsetY);
 
-  drawTriangle(10);
+  drawTriangle(20);
   drawings.forEach((drawing) => {
     ctx.lineWidth = 5;
     ctx.lineCap = "round";
@@ -87,7 +96,7 @@ const permissionStatus = document.getElementById("permission-status"); // New el
 function handleOrientation(event) {
   rotatingAngle = event.alpha;
   deviceDetails.innerText = `Device: ${rotatingAngle.toFixed(2)}°`;
-  canvas.style.transform = `rotate(${rotatingAngle}deg)`;
+  // canvas.style.transform = `rotate(${rotatingAngle}deg)`;
 }
 
 // Request permission and update status
@@ -114,6 +123,7 @@ animate();
 
 // Function to animate the drawing
 function animate() {
+  // ctx.rotate(-rotatingAngle * (Math.PI / 180));
   draw();
   redraw();
   requestAnimationFrame(animate);
