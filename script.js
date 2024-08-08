@@ -1,22 +1,51 @@
 const canvas = document.getElementById("drawingCanvas");
 const ctx = canvas.getContext("2d");
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight - 300;
+// canvas.width = window.innerWidth;
+// canvas.height = window.innerHeight - 300;
 
 let drawing = false;
 let offsetX = 0;
 let offsetY = 0;
 let rotatingAngle = 0;
 let updateoffsetvalue = 0;
-const drawings = [];
+let drawings = [];
 let walking = false;
 const accelerationHistory = [];
 const sampleSize = 50;
-let threshold = 0.2;
+let walkingThreshold = 0.0;
+let jumpThreshold = 15;
+let initialVelocity = 0;
+let timestamp = Date.now();
 
 const centerX = canvas.width / 2;
 const centerY = canvas.height / 2;
+
+const deviceDetails = document.getElementById("device-details");
+const permissionStatus = document.getElementById("permission-status"); // New element
+const walkigStatus = document.getElementById("walkigStatus");
+const tresholdValue = document.getElementById("tresholdValue");
+const startButton = document.getElementById("startButton");
+const clearCanvas = document.getElementById("clearCanvas");
+const deviceVelocity = document.getElementById("velocity");
+const updateoffset = document.getElementById("updateoffsetvalue");
+const jumpcount = document.getElementById("jumpcount");
+
+// Function to convert Cartesian coordinates to polar
+function toPolar(x, y) {
+  return {
+    mag: Math.hypot(x, y),
+    dir: Math.atan2(y, x),
+  };
+}
+
+// Function to convert polar coordinates to Cartesian
+function polatToXy(mag, dir) {
+  return {
+    x: mag * Math.cos(dir),
+    y: mag * Math.sin(dir),
+  };
+}
 
 // Function to draw a triangle
 function drawTriangle(size) {
@@ -35,7 +64,6 @@ function drawTriangle(size) {
 
 // Function to handle drawing
 function draw() {
-  // if (!drawing) return;
   const dx = 0;
   const dy = updateoffsetvalue;
   const { mag, dir } = toPolar(dx, dy);
@@ -45,12 +73,14 @@ function draw() {
   if (drawing) {
     drawings.push({ dx: offsetX, dy: offsetY });
   }
+  if (drawings.length > 300) {
+    drawings.shift();
+  }
   ctx.moveTo(centerX - offsetX, centerY - offsetY);
 }
 
 // Function to redraw the canvas
 function redraw() {
-  // if (!drawing) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.save();
   ctx.translate(offsetX, offsetY);
@@ -73,29 +103,12 @@ function redraw() {
   ctx.restore();
 }
 
-// Function to convert Cartesian coordinates to polar
-function toPolar(x, y) {
-  return {
-    mag: Math.hypot(x, y),
-    dir: Math.atan2(y, x),
-  };
-}
-
-// Function to convert polar coordinates to Cartesian
-function polatToXy(mag, dir) {
-  return {
-    x: mag * Math.cos(dir),
-    y: mag * Math.sin(dir),
-  };
-}
-
-const deviceDetails = document.getElementById("device-details");
-const permissionStatus = document.getElementById("permission-status"); // New element
-
 // Function to handle device orientation events
 function handleOrientation(event) {
   rotatingAngle = event.alpha;
-  deviceDetails.innerText = `Device: ${rotatingAngle.toFixed(2)}°`;
+  deviceDetails.innerText =
+    `Device: ${rotatingAngle > 0 ? rotatingAngle.toFixed(2) : rotatingAngle}°` +
+    `${drawings.length}`;
   // canvas.style.transform = `rotate(${rotatingAngle}deg)`;
 }
 
@@ -119,50 +132,53 @@ if (typeof DeviceOrientationEvent.requestPermission === "function") {
   permissionStatus.innerText = "Device orientation permission not required.";
 }
 
+tresholdValue.textContent = "walkingThreshold: " + walkingThreshold.toFixed(1);
+tresholdValue.addEventListener("click", () => {
+  walkingThreshold += 0.1;
+  tresholdValue.textContent =
+    "walkingThreshold: " + walkingThreshold.toFixed(1);
+});
+
+startButton.addEventListener("click", () => {
+  drawing = !drawing;
+  if (drawing) {
+    startButton.innerText = "Stop"; // Change startButton text to "Stop"
+  } else {
+    updateoffsetvalue = 0; // Reset offset value
+    startButton.innerText = "Start"; // Change startButton text to "Start"
+  }
+});
+
+clearCanvas.addEventListener("click", () => {
+  // empty the array
+  drawings.length = 0;
+  offsetX = 0;
+  offsetY = 0;
+  rotatingAngle = 0;
+  updateoffsetvalue = 0;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  walking = false;
+  drawing = false;
+  walkigStatus.innerText = "status: Not Walking";
+  startButton.innerText = "Start";
+
+  console.log("canvas cleared");
+  console.table(drawings, offsetX, offsetY, rotatingAngle, updateoffsetvalue);
+});
+
 animate();
+
+setInterval(() => {
+  draw();
+}, 20);
 
 // Function to animate the drawing
 function animate() {
-  // ctx.rotate(-rotatingAngle * (Math.PI / 180));
-  draw();
   redraw();
   requestAnimationFrame(animate);
 }
 
-const button = document.getElementById("btn");
-
-// Event listener for button click
-button.addEventListener("click", () => {
-  drawing = !drawing;
-  if (drawing) {
-    button.innerText = "Stop"; // Change button text to "Stop"
-  } else {
-    updateoffsetvalue = 0; // Reset offset value
-    button.innerText = "Start"; // Change button text to "Start"
-  }
-});
-
-const tresholdValue = document.getElementById("addthreshold");
-tresholdValue.textContent = "Threshold: " + threshold;
-tresholdValue.addEventListener("click", () => {
-  threshold += 0.1;
-  tresholdValue.textContent = "Threshold: " + threshold.toFixed(1);
-});
-
-// Request permission for iOS 13+ devices
-if (typeof DeviceMotionEvent.requestPermission === "function") {
-  DeviceMotionEvent.requestPermission()
-    .then((permissionState) => {
-      if (permissionState === "granted") {
-        window.addEventListener("devicemotion", handleMotionEvent);
-      }
-    })
-    .catch(console.error);
-} else {
-  // For devices that do not require permission
-  window.addEventListener("devicemotion", handleMotionEvent);
-}
-
+// Function to handle device motion events
 function handleMotionEvent(event) {
   const acceleration = event.accelerationIncludingGravity;
   const magnitude = Math.sqrt(
@@ -186,15 +202,60 @@ function handleMotionEvent(event) {
       accelerationHistory.reduce((a, b) => a + (b - mean) ** 2, 0) / sampleSize;
 
     // Determine if the person is walking based on the variance
-    if (variance > threshold) {
+    if (variance > walkingThreshold) {
       walking = true;
-      updateoffsetvalue = 1;
-      document.getElementById("walkigStatus").innerText = "staus: Walking";
+      // updateoffsetvalue = 1;
+      walkigStatus.innerText = "staus: Walking";
     } else {
       walking = false;
-      updateoffsetvalue = 0;
-      document.getElementById("walkigStatus").innerText =
-        " status: Not Walking";
+      // updateoffsetvalue = 0;
+      walkigStatus.innerText = " status: Not Walking";
     }
   }
 }
+
+// Request permission for iOS 13+ devices
+if (typeof DeviceMotionEvent.requestPermission === "function") {
+  DeviceMotionEvent.requestPermission()
+    .then((permissionState) => {
+      if (permissionState === "granted") {
+        window.addEventListener("devicemotion", handleMotionEvent);
+      }
+    })
+    .catch(console.error);
+} else {
+  // For devices that do not require permission
+  window.addEventListener("devicemotion", handleMotionEvent);
+}
+
+// ######################################################
+// ######################################################
+// ######################################################
+// ######################################################
+// ######################################################
+let accelerationDataFrame = [];
+let jumpCount = 0;
+window.addEventListener("devicemotion", (event) => {
+  const acceleration = event.acceleration;
+  const magnitude = Math.sqrt(
+    acceleration.x * acceleration.x + acceleration.y * acceleration.y
+    // acceleration.z * acceleration.z
+  );
+  const timeDiff = Date.now() - timestamp;
+  accelerationDataFrame.push(acceleration.z);
+  if (timeDiff > 400) {
+    let acceleration = event.accelerationIncludingGravity;
+
+    if (acceleration.z > jumpThreshold) {
+      jumpCount++;
+      jumpcount.innerText = `Jumps: ${jumpCount}`;
+    }
+    timestamp = Date.now();
+    currtVelocity = (magnitude * 100) / timeDiff + initialVelocity;
+    initialVelocity = currtVelocity - initialVelocity;
+
+    updateoffsetvalue = 0.7 * currtVelocity;
+    updateoffset.innerText = `Offset: ${updateoffsetvalue.toFixed(2)}`;
+    deviceVelocity.innerText = `Velocity: ${currtVelocity.toFixed(2)} m/s`;
+  }
+});

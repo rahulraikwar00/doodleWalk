@@ -7,13 +7,25 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <canvas id="drawingCanvas" width="500" height="500"></canvas>
-    <button id="btn">Start</button>
-    <button id="addthreshold">Raise Threshold</button>
-    <h1 id="device-details">Device orientation not available</h1>
-    <h1 id="walkigStatus">Loading...</h1>
-    <h1 id="permission-status">Loading...</h1>
-    <h1 id="tresholdValue">Loading...</h1>
+    <div class="container">
+      <div class="canvas-container">
+        <canvas id="drawingCanvas" width="700" height="700"></canvas>
+      </div>
+      <div class="controls">
+        <button id="startButton">Start</button>
+        <button id="addthreshold">Raise Threshold</button>
+        <button id="clearCanvas">Clear</button>
+      </div>
+      <div class="status-container">
+        <h2 id="device-details">Device orientation not available</h2>
+        <h2 id="permission-status">Loading...</h2>
+        <h2 id="tresholdValue">Loading...</h2>
+        <h2 id="velocity">Loading...</h2>
+        <h2 id="updateoffsetvalue">Loading...</h2>
+        <h2 id="walkigStatus" class="jump-count">Loading...</h2>
+        <h2 id="jumpcount" class="jump-count">Jumps:0</h2>
+      </div>
+    </div>
     <script src="script.js"></script>
   </body>
 </html>
